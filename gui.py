@@ -1,3 +1,4 @@
+import tkinter
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
@@ -25,7 +26,7 @@ class Application(tk.Frame):
     #
     def create_notebook(self):
         self.notebook = ttk.Notebook(self.master)
-        self.notebook.bind("<<NotebookTabChanged>>", self.stream_thread)
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_switch)
         self.notebook.pack(pady=10, padx=10, fill='both', expand=True)
         self.main_frame = ttk.Frame(self.notebook)
         self.main_frame.grid(column=0, row=0)
@@ -66,26 +67,24 @@ class Application(tk.Frame):
 
     current_stream = None
 
-    def stream_thread(self, event):
-        self.current_stream = threading.Thread(target=self.on_tab_switch())
-        self.current_stream.start()
+    @staticmethod
+    def end_current():
+        Application.current_stream.end_stream()
+        Application.current_stream = None
+        pass
 
-    def join_stream(self):
-        self.current_stream.join(0)
-
-    def on_tab_switch(self):
+    def on_tab_switch(self, event):
         current_id = self.notebook.index("current")
-        if self.current_stream:
-            self.join_stream()
+        if Application.current_stream:
+            self.end_current()
+
         if current_id == 0:
             return
         else:
             tab = self.notebook.nametowidget(self.notebook.select())
 
             if tab:
-                print("BRUH")
-                stream_grabber.connect_stream(str(tab.device.ip_address))
-        pass
+                Application.current_stream = stream_grabber.CaptureLabel(tab.device.ip_address, tab)
 
 
 #
@@ -121,6 +120,7 @@ class DeviceFrame(tk.Frame):
     # A bezáró gomb megnyomása esetén lefutó kódrészlet, mely eltávolítja az applikációból az objektumot
     #
     def close(self):
+        Application.end_current()
         Application.device_frames.remove(self)
         self.destroy()
 

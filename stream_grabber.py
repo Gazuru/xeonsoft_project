@@ -58,30 +58,38 @@ def stop_stream(stream):
     stream.join()
 
 
-class CaptureLabel():
+class CaptureLabel(tk.Label):
     def __init__(self, ip_addr, master=None):
+        super().__init__(master)
         self.master = master
         src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
         self.cam = cv2.VideoCapture(src)
-        self.mainframe = tk.Frame(master, width=600, height=500)
-        self.mainframe.grid(row=0, column=0, padx=10, pady=2, rowspan=3)
 
-        self.panel = tk.Label(self.mainframe)
-        self.panel.grid(row=0, column=0, rowspan=3)
+        self.grid(row=0, column=0, rowspan=3)
 
         self.delay = 15
-        self.video_stream()
-        self.master.mainloop()
+        self.thread = threading.Thread(target=self.video_stream())
+        self.thread.daemon = True
+        self.thread.start()
 
     def video_stream(self):
         _, frame = self.cam.read()
         cv2img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         image = Image.fromarray(cv2img)
-        imgtk = ImageTk.PhotoImage(image=image)
-        self.panel.imgtk = imgtk
-        self.panel.configure(image=imgtk)
-        self.master.after(100, self.video_stream)
+        imagetk = ImageTk.PhotoImage(image=image)
+        self.imgtk = imagetk
+        self.configure(image=imagetk)
+        self.master.after(10, self.video_stream)
+
+    def end_stream(self):
+        self.thread.join()
+        self.destroy()
 
 
 if __name__ == '__main__':
-    CaptureLabel('192.168.1.67', tk.Tk())
+    root = tk.Tk()
+    main_frame = tk.Frame(root, width=600, height=500)
+    main_frame.grid(row=0, column=0, padx=10, pady=2, rowspan=3)
+
+    CaptureLabel('192.168.1.67', main_frame)
+    main_frame.mainloop()
