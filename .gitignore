@@ -1,2 +1,5 @@
 /venv/**
 /.idea/
+/venv36/**
+/pygraphviz-1.5-cp38-cp38-win_amd64.whl
+/tensorflow-for-poets-2/**
