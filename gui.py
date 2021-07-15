@@ -5,9 +5,15 @@ import threading
 import re
 import os
 import stream_grabber
+import file_transfer
 
-train_images = None
-network_path = None
+
+class Upload:
+    network_path = None
+
+    @staticmethod
+    def clear():
+        Upload.network_path = None
 
 
 #
@@ -79,6 +85,7 @@ class Application(tk.Frame):
         threading.Thread(target=self.on_tab_switch).start()
 
     def on_tab_switch(self):
+        Upload.clear()
         current_id = self.notebook.index("current")
         if Application.current_stream:
             self.end_current()
@@ -103,6 +110,15 @@ class Device:
 
 
 #
+# TODO elkészíteni ezt a classt, mely váltogatni képest text input bekérése és fájl kiválasztása között
+#
+class KeyTypeFrame(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+
+
+#
 # Az osztály, mely egy Device objektum megjelenítéséért felel a felhasználói felületen
 #
 class DeviceFrame(tk.Frame):
@@ -111,18 +127,19 @@ class DeviceFrame(tk.Frame):
         self.master = master
         self.device = device
 
-        self.rowconfigure(0, weight=1)
+        # self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
-        self.close = tk.Button(self, text="Close", command=self.close)
-        self.close.grid(row=2, column=1, padx=10, pady=10)
 
+        self.button_frame = tk.Frame(self)
+        self.close = tk.Button(self.button_frame, text="Close", command=self.close)
+        self.close.pack(fill="x", side="bottom")
         self.create_file_buttons()
-
         self.master.add(self, text="Device " + str(Application.device_nums + 1))
 
         Application.device_nums += 1
 
         self.master.select(self)
+        self.button_frame.grid(row=2, column=1, pady=10, padx=10)
 
     #
     # A bezáró gomb megnyomása esetén lefutó kódrészlet, mely eltávolítja az applikációból az objektumot
@@ -133,25 +150,25 @@ class DeviceFrame(tk.Frame):
         self.destroy()
 
     def create_file_buttons(self):
-        open_images_button = tk.Button(self, text="Open Image Directory", command=self.create_image_opener)
-        open_images_button.grid(column=1, row=0, pady=10)
-        open_network_button = tk.Button(self, text="Open Network File", command=self.create_network_opener)
-        open_network_button.grid(column=1, row=1, pady=10)
+        open_network_button = tk.Button(self.button_frame, text="Open Network File", command=self.create_network_opener)
+        open_network_button.pack(fill="x", side="bottom")
+        upload_files_button = tk.Button(self.button_frame, text="Upload", command=self.upload_thread)
+        upload_files_button.pack(fill="x", side="bottom")
+
+    def upload_thread(self):
+        threading.Thread(target=self.start_upload).start()
+
+    def start_upload(self):
+        ft = file_transfer.FileTransfer(self.device.ip_address, 'pi', 'GazuruXeon21')
+        ft.upload('D:/Python/xeonsoft_project/README.md', '~/Desktop')
+        ft.disconnect()
 
     def create_network_opener(self):
-        global network_path
-        if network_path:
-            network_path = None
-        network_path = filedialog.askopenfilename(title="Open network file", defaultextension='.par',
-                                                  initialdir=os.path.dirname(os.path.abspath(__file__)),
-                                                  filetypes=[('Parchive Index File', '.par')])
-
-    def create_image_opener(self):
-        global train_images
-        if train_images:
-            train_images = None
-        train_images = filedialog.askdirectory(mustexist=True, title="Open training image folder",
-                                               initialdir=os.path.dirname(os.path.abspath(__file__)))
+        if Upload.network_path:
+            Upload.network_path = None
+        Upload.network_path = filedialog.askopenfilename(title="Open network file", defaultextension='.par',
+                                                         initialdir=os.path.dirname(os.path.abspath(__file__)),
+                                                         filetypes=[('Parchive Index File', '.par')])
 
 
 #
@@ -180,7 +197,7 @@ def on_closing():
 # A grafikus felület inicializálása, létrehozása
 #
 def init_gui():
-    root.geometry('640x480')
+    root.geometry('1024x768')
     root.protocol("WM_DELETE_WINDOW", on_closing)
     app = Application(master=root)
     app.mainloop()

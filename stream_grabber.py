@@ -1,16 +1,15 @@
 import threading
-import eventlet
 from PIL import ImageTk, Image
 import tkinter as tk
 from tkinter import messagebox
 import cv2
+
 
 class CaptureLabel(tk.Label):
     def __init__(self, ip_addr, master=None):
         super().__init__(master)
         self.master = master
         src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
-        eventlet.monkey_patch(socket=True)
 
         self.timeout = self.after(3000, self.error)
         self.cam = cv2.VideoCapture(src)
@@ -18,9 +17,8 @@ class CaptureLabel(tk.Label):
         self.thread = threading.Thread(target=self.video_stream())
 
         if self.cam.isOpened():
-            self.grid(row=0, column=0, rowspan=3)
+            self.grid(row=0, column=0, rowspan=3, sticky='NWS')
 
-            self.delay = 15
             self.thread.daemon = True
             self.thread.start()
 
