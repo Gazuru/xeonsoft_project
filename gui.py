@@ -1,10 +1,13 @@
-import tkinter
 import tkinter as tk
 import tkinter.ttk as ttk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 import threading
 import re
+import os
 import stream_grabber
+
+train_images = None
+network_path = None
 
 
 #
@@ -26,7 +29,7 @@ class Application(tk.Frame):
     #
     def create_notebook(self):
         self.notebook = ttk.Notebook(self.master)
-        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_switch)
+        self.notebook.bind("<<NotebookTabChanged>>", self.tab_thread)
         self.notebook.pack(pady=10, padx=10, fill='both', expand=True)
         self.main_frame = ttk.Frame(self.notebook)
         self.main_frame.grid(column=0, row=0)
@@ -71,9 +74,11 @@ class Application(tk.Frame):
     def end_current():
         Application.current_stream.end_stream()
         Application.current_stream = None
-        pass
 
-    def on_tab_switch(self, event):
+    def tab_thread(self, event):
+        threading.Thread(target=self.on_tab_switch).start()
+
+    def on_tab_switch(self):
         current_id = self.notebook.index("current")
         if Application.current_stream:
             self.end_current()
@@ -93,6 +98,7 @@ class Application(tk.Frame):
 class Device:
     def __init__(self, ip):
         self.ip_address = ip
+        self.was_loaded = False
         print("Device created with IP " + str(self.ip_address))
 
 
@@ -108,7 +114,9 @@ class DeviceFrame(tk.Frame):
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         self.close = tk.Button(self, text="Close", command=self.close)
-        self.close.grid(row=1, column=1, padx=10, pady=10)
+        self.close.grid(row=2, column=1, padx=10, pady=10)
+
+        self.create_file_buttons()
 
         self.master.add(self, text="Device " + str(Application.device_nums + 1))
 
@@ -123,6 +131,27 @@ class DeviceFrame(tk.Frame):
         Application.end_current()
         Application.device_frames.remove(self)
         self.destroy()
+
+    def create_file_buttons(self):
+        open_images_button = tk.Button(self, text="Open Image Directory", command=self.create_image_opener)
+        open_images_button.grid(column=1, row=0, pady=10)
+        open_network_button = tk.Button(self, text="Open Network File", command=self.create_network_opener)
+        open_network_button.grid(column=1, row=1, pady=10)
+
+    def create_network_opener(self):
+        global network_path
+        if network_path:
+            network_path = None
+        network_path = filedialog.askopenfilename(title="Open network file", defaultextension='.par',
+                                                  initialdir=os.path.dirname(os.path.abspath(__file__)),
+                                                  filetypes=[('Parchive Index File', '.par')])
+
+    def create_image_opener(self):
+        global train_images
+        if train_images:
+            train_images = None
+        train_images = filedialog.askdirectory(mustexist=True, title="Open training image folder",
+                                               initialdir=os.path.dirname(os.path.abspath(__file__)))
 
 
 #

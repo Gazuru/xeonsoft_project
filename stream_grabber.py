@@ -1,76 +1,32 @@
 import threading
-import tkinter
-from threading import Thread
+import eventlet
 from PIL import ImageTk, Image
 import tkinter as tk
+from tkinter import messagebox
 import cv2
-
-
-class RTSPVideoWriterObject(object):
-    def __init__(self, src=0):
-        self.capture = cv2.VideoCapture(src)
-
-        self.frame_width = int(self.capture.get(3))
-        self.frame_height = int(self.capture.get(4))
-
-        self.codec = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-        # self.output_video = cv2.VideoWriter('output.avi', self.codec, 30, (self.frame_width, self.frame_height))
-
-        self.thread = Thread(target=self.update, args=())
-        self.thread.daemon = True
-        self.thread.start()
-
-    def update(self):
-        while True:
-            if self.capture.isOpened():
-                (self.status, self.frame) = self.capture.read()
-
-    def show_frame(self):
-        if self.status:
-            cv2.imshow('frame', self.frame)
-
-        key = cv2.waitKey(1)
-        if key == ord('q'):
-            self.capture.release()
-            # self.output_video.release()
-            cv2.destroyAllWindows()
-            exit(1)
-
-    def save_frame(self):
-        # self.output_video.write(self.frame)
-        pass
-
-
-def connect_stream(ip_address):
-    video_stream_widget = RTSPVideoWriterObject('http://' + ip_address + ':8080/stream/video.mjpeg')
-    while True:
-        try:
-            video_stream_widget.show_frame()
-        except AttributeError:
-            pass
-
-
-def start_stream(ip):
-    threading.Thread(target=connect_stream(ip)).start()
-
-
-def stop_stream(stream):
-    stream.join()
-
 
 class CaptureLabel(tk.Label):
     def __init__(self, ip_addr, master=None):
         super().__init__(master)
         self.master = master
         src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
+        eventlet.monkey_patch(socket=True)
+
+        self.timeout = self.after(3000, self.error)
         self.cam = cv2.VideoCapture(src)
-
-        self.grid(row=0, column=0, rowspan=3)
-
-        self.delay = 15
+        self.after_cancel(self.timeout)
         self.thread = threading.Thread(target=self.video_stream())
-        self.thread.daemon = True
-        self.thread.start()
+
+        if self.cam.isOpened():
+            self.grid(row=0, column=0, rowspan=3)
+
+            self.delay = 15
+            self.thread.daemon = True
+            self.thread.start()
+
+    def error(self):
+        messagebox.showerror(title="Error", message="Invalid address!")
+        self.master.destroy()
 
     def video_stream(self):
         _, frame = self.cam.read()
