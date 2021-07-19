@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[[ -d ~/tensorflow-for-poets-2 ]] || echo "Please run 'retrain.sh' before this script."; exit 1;
+
 cd ~/tensorflow-for-poets-2/tf_files
 
 [[ ! -z "$1" ]] && address=$1 || read -p "Please enter the IP address of the Pi you would like to upload this network to: " address

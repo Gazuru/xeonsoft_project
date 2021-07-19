@@ -33,6 +33,5 @@ wget -O model_retrain.ipynb https://raw.githubusercontent.com/Gazuru/xeonsoft_pr
 wait
 ipython -c "%run model_retrain.ipynb"
 wait
-cd tensorflow-for-poets-2/tf_files
-echo "A retrained_graph.binaryproto filera lesz szuksege"
 source deactivate
+echo "Run 'upload.sh' to upload retrained graph to Raspberry device."
