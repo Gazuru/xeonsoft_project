@@ -2,11 +2,18 @@
 
 cd ~
 
-mkdir -p train_images
-mkdir -p train_images/correct
-mkdir -p train_images/faulty
+if [[ ! -d train_images ]] ; then
+       	mkdir -p train_images
+       	mkdir -p train_images/correct
+	mkdir -p train_images/faulty
+	echo "Please place your training images into the corresponding folder inside 'train_images'."
+	return
+fi
 
-read -n 1 -p "If you didn't place your training images in the train_images' proper folder press Ctrl+C, if you did, press any button."
+if [[ ! $(ls -A "train_images/correct") ]] || [[ ! $(ls -A "train_images/faulty") ]] ; then
+       	echo "The correct and faulty folders are empty. Quitting..."
+	return
+fi
 
 if [ ! -d /etc/pki/tls/certs ] && [ ! -a /etc/pki/tls/certs/ca-bundle.crt ] ; then
 	sudo mkdir -p /etc/pki/tls/certs
