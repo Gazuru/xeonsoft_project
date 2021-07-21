@@ -118,7 +118,7 @@ class Application(tk.Frame):
     def clear(self):
         if Application.loaded_file is not None:
             Application.loaded_file = None
-        for i in range(len(Application.device_frames)-1, -1, -1):
+        for i in range(len(Application.device_frames) - 1, -1, -1):
             Application.device_frames[i].kill()
 
     @staticmethod
@@ -129,13 +129,13 @@ class Application(tk.Frame):
                 ips.append(device_frame.device.ip_address)
             if Application.loaded_file is not None:
                 try:
-                    with open('tmp.cfg', "wb") as tmp:
+                    with open('/tmp/tmp.cfg', "wb") as tmp:
                         pickle.dump(ips, tmp, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    if filecmp.cmp('tmp.cfg', Application.loaded_file, shallow=True):
-                        os.remove('tmp.cfg')
+                    if filecmp.cmp('/tmp/tmp.cfg', Application.loaded_file, shallow=True):
+                        os.remove('/tmp/tmp.cfg')
                         return True
-                    os.remove('tmp.cfg')
+                    os.remove('/tmp/tmp.cfg')
                     return False
                 except Exception as e:
                     print("Error:", e)
@@ -172,7 +172,7 @@ class Application(tk.Frame):
         Application.loaded_file = tk.filedialog.askopenfilename(filetypes=[('Config Files', '*.cfg')],
                                                                 initialdir=os.path.dirname(os.path.abspath(__file__)))
         if Application.loaded_file is not None and Application.loaded_file != '':
-            for i in range(len(Application.device_frames)-1, -1, -1):
+            for i in range(len(Application.device_frames) - 1, -1, -1):
                 Application.device_frames[i].kill()
             with open(Application.loaded_file, "rb") as file:
                 try:
