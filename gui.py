@@ -1,3 +1,4 @@
+import filecmp
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox, filedialog
@@ -6,6 +7,7 @@ import re
 import os
 import stream_grabber
 import file_transfer
+import pickle
 
 
 class Upload:
@@ -27,6 +29,7 @@ class Application(tk.Frame):
         super().__init__(master)
         self.master = master
 
+        self.create_menu()
         self.create_widgets()
         self.pack()
 
@@ -60,6 +63,17 @@ class Application(tk.Frame):
         self.create_notebook()
         self.create_device_adder()
 
+    def create_menu(self):
+        menu = tk.Menu(self.master)
+        self.master.config(menu=menu)
+        fileMenu = tk.Menu(menu)
+        # TODO menüelemek funkcióinak implementációja
+        fileMenu.add_command(label="Save")
+        fileMenu.add_command(label="Load")
+        fileMenu.add_command(label="Clear")
+
+        menu.add_cascade(label="File", menu=fileMenu)
+
     #
     # Eseménykezelő metódus az eszköz hozzáadó gombhoz
     #
@@ -68,7 +82,7 @@ class Application(tk.Frame):
 
         # Csak akkor adódik hozzá a megfelelő eszközt képviselő objektum, ha megfelelő formátumú IP-címet adott meg a
         # felhasználó
-        if bool(re.match("[0-9]{1,3}(\.[0-9]{1,3}){3}", ip_addr)):
+        if bool(re.match("^[0-9]{1,3}(\.[0-9]{1,3}){3}$", ip_addr)):
             self.device_frames.append(DeviceFrame(Device(ip_addr), self.notebook))
             self.new_device_ip_entry.delete(0, 'end')
         else:
@@ -97,6 +111,45 @@ class Application(tk.Frame):
 
             if tab:
                 Application.current_stream = stream_grabber.CaptureLabel(tab.device.ip_address, tab)
+
+    @staticmethod
+    def check_save():
+        try:
+            with open('data.pickle', "wb") as save:
+                with open('tmp.pickle', "wb") as tmp:
+                    pickle.dump(Application.notebook, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+                    if filecmp.cmp(tmp, save, shallow=True):
+                        os.remove('tmp.pickle')
+                        return True
+                    return False
+        except Exception as e:
+            print("Error:", e)
+
+    @staticmethod
+    def save():
+        if Application.device_frames:
+            ips = []
+            for device_frame in Application.device_frames:
+                ips.append(device_frame.device.ip_address)
+            try:
+                with open('data.pickle', "wb") as f:
+                    pickle.dump(ips, f, protocol=pickle.HIGHEST_PROTOCOL)
+            except Exception as e:
+                print("Error:", e)
+        else:
+            tk.messagebox.showinfo(title="Info", message="Nothing to be saved!")
+
+    def load(self):
+        try:
+            with open('data.pickle', "rb") as f:
+                ips = pickle.load(f)
+            if ips:
+                for address in ips:
+                    self.add_new_device(address)
+            else:
+                return
+        except Exception as e:
+            print("Error:", e)
 
 
 #
@@ -166,9 +219,8 @@ class DeviceFrame(tk.Frame):
     def create_network_opener(self):
         if Upload.network_path:
             Upload.network_path = None
-        Upload.network_path = filedialog.askopenfilename(title="Open network file", defaultextension='.par',
-                                                         initialdir=os.path.dirname(os.path.abspath(__file__)),
-                                                         filetypes=[('Parchive Index File', '.par')])
+        Upload.network_path = filedialog.askopenfilenames(title="Open network file",
+                                                          initialdir=os.path.dirname(os.path.abspath(__file__)))
 
 
 #
@@ -182,13 +234,19 @@ root = tk.Tk(className="\XeonSoft_Project")
 # implementálja
 #
 def on_closing():
+    # Mentés kérdésének feltevése
+    if Application.check_save():
+        return
     reply = messagebox.askyesnocancel("Quit", "You have unsaved changes.\nDo you want to save before closing?")
+    # Igen
     if reply:
-        # TODO Implement saving
+        Application.save_notebook()
         root.destroy()
         pass
+    # Mégse
     elif reply is None:
         pass
+    # Nem
     else:
         root.destroy()
 

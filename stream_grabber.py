@@ -1,4 +1,5 @@
 import threading
+
 from PIL import ImageTk, Image
 import tkinter as tk
 from tkinter import messagebox
@@ -9,7 +10,7 @@ class CaptureLabel(tk.Label):
     def __init__(self, ip_addr, master=None):
         super().__init__(master)
         self.master = master
-        src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
+        src = str('http://' + ip_addr + ':4665/stream')
 
         self.timeout = self.after(3000, self.error)
         self.cam = cv2.VideoCapture(src)
@@ -44,6 +45,11 @@ if __name__ == '__main__':
     root = tk.Tk()
     main_frame = tk.Frame(root, width=600, height=500)
     main_frame.grid(row=0, column=0, padx=10, pady=2, rowspan=3)
-
     CaptureLabel('192.168.1.67', main_frame)
     main_frame.mainloop()
+
+    """req = urllib.request.urlopen('http://192.168.1.67:4664')
+    arr = numpy.asarray(bytearray(req.read()), dtype=numpy.uint8)
+    img = cv2.imdecode(arr, -1)
+    cv2.imshow("ASD", img)
+"""
