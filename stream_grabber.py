@@ -12,9 +12,9 @@ class CaptureLabel(tk.Label):
         self.master = master
         src = str('http://' + ip_addr + ':4665/stream')
 
-        self.timeout = self.after(3000, self.error)
+        # self.timeout = self.after(3000, self.error)
         self.cam = cv2.VideoCapture(src)
-        self.after_cancel(self.timeout)
+        # self.after_cancel(self.timeout)
         self.thread = threading.Thread(target=self.video_stream())
 
         if self.cam.isOpened():
@@ -37,6 +37,7 @@ class CaptureLabel(tk.Label):
         self.master.after(10, self.video_stream)
 
     def end_stream(self):
+        self.cam.release()
         self.thread.join()
         self.destroy()
 

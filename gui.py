@@ -23,7 +23,6 @@ class Upload:
 #
 class Application(tk.Frame):
     device_frames = []
-    device_nums = 0
 
     def __init__(self, master=None):
         super().__init__(master)
@@ -66,11 +65,11 @@ class Application(tk.Frame):
     def create_menu(self):
         menu = tk.Menu(self.master)
         self.master.config(menu=menu)
-        fileMenu = tk.Menu(menu)
+        fileMenu = tk.Menu(menu, tearoff=0)
         # TODO menüelemek funkcióinak implementációja
-        fileMenu.add_command(label="Save")
-        fileMenu.add_command(label="Load")
-        fileMenu.add_command(label="Clear")
+        fileMenu.add_command(label="Save", command=self.save)
+        fileMenu.add_command(label="Load", command=self.load)
+        fileMenu.add_command(label="Clear", command=self.clear)
 
         menu.add_cascade(label="File", menu=fileMenu)
 
@@ -83,20 +82,24 @@ class Application(tk.Frame):
         # Csak akkor adódik hozzá a megfelelő eszközt képviselő objektum, ha megfelelő formátumú IP-címet adott meg a
         # felhasználó
         if bool(re.match("^[0-9]{1,3}(\.[0-9]{1,3}){3}$", ip_addr)):
-            self.device_frames.append(DeviceFrame(Device(ip_addr), self.notebook))
+            Application.device_frames.append(DeviceFrame(Device(ip_addr), self.notebook))
             self.new_device_ip_entry.delete(0, 'end')
         else:
-            print("Invalid IP address format")
+            tk.messagebox.showerror(title="Error", message="Invalid IP format!")
+            self.new_device_ip_entry.delete(0, 'end')
 
     current_stream = None
 
     @staticmethod
     def end_current():
-        Application.current_stream.end_stream()
-        Application.current_stream = None
+        if Application.current_stream:
+            Application.current_stream.end_stream()
+            Application.current_stream = None
 
     def tab_thread(self, event):
-        threading.Thread(target=self.on_tab_switch).start()
+        thread = threading.Thread(target=self.on_tab_switch)
+        thread.daemon = True
+        thread.start()
 
     def on_tab_switch(self):
         Upload.clear()
@@ -112,18 +115,34 @@ class Application(tk.Frame):
             if tab:
                 Application.current_stream = stream_grabber.CaptureLabel(tab.device.ip_address, tab)
 
+    def clear(self):
+        if Application.loaded_file is not None:
+            Application.loaded_file = None
+        for i in range(len(Application.device_frames)-1, -1, -1):
+            Application.device_frames[i].kill()
+
     @staticmethod
     def check_save():
-        try:
-            with open('data.pickle', "wb") as save:
-                with open('tmp.pickle', "wb") as tmp:
-                    pickle.dump(Application.notebook, tmp, protocol=pickle.HIGHEST_PROTOCOL)
-                    if filecmp.cmp(tmp, save, shallow=True):
-                        os.remove('tmp.pickle')
+        if Application.device_frames:
+            ips = []
+            for device_frame in Application.device_frames:
+                ips.append(device_frame.device.ip_address)
+            if Application.loaded_file is not None:
+                try:
+                    with open('tmp.cfg', "wb") as tmp:
+                        pickle.dump(ips, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+
+                    if filecmp.cmp('tmp.cfg', Application.loaded_file, shallow=True):
+                        os.remove('tmp.cfg')
                         return True
+                    os.remove('tmp.cfg')
                     return False
-        except Exception as e:
-            print("Error:", e)
+                except Exception as e:
+                    print("Error:", e)
+            else:
+                return False
+        else:
+            return True
 
     @staticmethod
     def save():
@@ -131,25 +150,42 @@ class Application(tk.Frame):
             ips = []
             for device_frame in Application.device_frames:
                 ips.append(device_frame.device.ip_address)
-            try:
-                with open('data.pickle', "wb") as f:
-                    pickle.dump(ips, f, protocol=pickle.HIGHEST_PROTOCOL)
-            except Exception as e:
-                print("Error:", e)
+            filename = tk.filedialog.asksaveasfilename(defaultextension='.cfg', filetypes=[('Config Files', '*.cfg')],
+                                                       initialdir=os.path.dirname(os.path.abspath(__file__)))
+            if filename is not None:
+                with open(filename, "wb") as file:
+                    try:
+                        pickle.dump(ips, file, protocol=pickle.HIGHEST_PROTOCOL)
+                        Application.loaded_file = file
+                    except Exception as e:
+                        print("Error:", e)
+            else:
+                return
         else:
             tk.messagebox.showinfo(title="Info", message="Nothing to be saved!")
 
+    loaded_file = None
+
     def load(self):
-        try:
-            with open('data.pickle', "rb") as f:
-                ips = pickle.load(f)
-            if ips:
-                for address in ips:
-                    self.add_new_device(address)
-            else:
-                return
-        except Exception as e:
-            print("Error:", e)
+        if not on_load():
+            return
+        Application.loaded_file = tk.filedialog.askopenfilename(filetypes=[('Config Files', '*.cfg')],
+                                                                initialdir=os.path.dirname(os.path.abspath(__file__)))
+        if Application.loaded_file is not None and Application.loaded_file != '':
+            for i in range(len(Application.device_frames)-1, -1, -1):
+                Application.device_frames[i].kill()
+            with open(Application.loaded_file, "rb") as file:
+                try:
+                    ips = pickle.load(file)
+                    if ips:
+                        for address in ips:
+                            Application.device_frames.append(DeviceFrame(Device(address), self.notebook))
+                    else:
+                        return
+                except Exception as e:
+                    print("Error:", e)
+        else:
+            return
 
 
 #
@@ -158,17 +194,7 @@ class Application(tk.Frame):
 class Device:
     def __init__(self, ip):
         self.ip_address = ip
-        self.was_loaded = False
         print("Device created with IP " + str(self.ip_address))
-
-
-#
-# TODO elkészíteni ezt a classt, mely váltogatni képest text input bekérése és fájl kiválasztása között
-#
-class KeyTypeFrame(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.master = master
 
 
 #
@@ -184,12 +210,22 @@ class DeviceFrame(tk.Frame):
         self.columnconfigure(0, weight=1)
 
         self.button_frame = tk.Frame(self)
-        self.close = tk.Button(self.button_frame, text="Close", command=self.close)
+        self.close = tk.Button(self.button_frame, text="Close", command=self.kill)
         self.close.pack(fill="x", side="bottom")
-        self.create_file_buttons()
-        self.master.add(self, text="Device " + str(Application.device_nums + 1))
+        # self.create_file_buttons()
 
-        Application.device_nums += 1
+        num = 0
+
+        for i in range(len(Application.device_frames) + 1):
+            found = True
+            for tab in self.master.tabs():
+                if self.master.tab(tab, "text") == "Device " + str(i + 1):
+                    found = False
+            if found:
+                num = i
+                break
+
+        self.master.add(self, text="Device " + str(num + 1))
 
         self.master.select(self)
         self.button_frame.grid(row=2, column=1, pady=10, padx=10)
@@ -197,7 +233,7 @@ class DeviceFrame(tk.Frame):
     #
     # A bezáró gomb megnyomása esetén lefutó kódrészlet, mely eltávolítja az applikációból az objektumot
     #
-    def close(self):
+    def kill(self):
         Application.end_current()
         Application.device_frames.remove(self)
         self.destroy()
@@ -229,6 +265,21 @@ class DeviceFrame(tk.Frame):
 root = tk.Tk(className="\XeonSoft_Project")
 
 
+def on_load():
+    if Application.check_save():
+        return True
+    else:
+        reply = messagebox.askyesnocancel("Load new config",
+                                          "You have unsaved changes.\Do you want to save before loading a new configuration?")
+        if reply:
+            Application.save()
+            return True
+        elif reply is None:
+            return False
+        else:
+            return True
+
+
 #
 # A bezáráskor megjelenő párbeszédablak megjelenítését, az abban található gombok által megvalósított viselkedést
 # implementálja
@@ -236,19 +287,19 @@ root = tk.Tk(className="\XeonSoft_Project")
 def on_closing():
     # Mentés kérdésének feltevése
     if Application.check_save():
-        return
-    reply = messagebox.askyesnocancel("Quit", "You have unsaved changes.\nDo you want to save before closing?")
-    # Igen
-    if reply:
-        Application.save_notebook()
         root.destroy()
-        pass
-    # Mégse
-    elif reply is None:
-        pass
-    # Nem
     else:
-        root.destroy()
+        reply = messagebox.askyesnocancel("Quit", "You have unsaved changes.\nDo you want to save before closing?")
+        # Igen
+        if reply:
+            Application.save()
+            root.destroy()
+        # Mégse
+        elif reply is None:
+            pass
+        # Nem
+        else:
+            root.destroy()
 
 
 #
