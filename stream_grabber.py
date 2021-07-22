@@ -1,13 +1,22 @@
+import cv2
 import threading
+import tkinter as tk
 
 from PIL import ImageTk, Image
-import tkinter as tk
 from tkinter import messagebox
-import cv2
 
 
 class CaptureLabel(tk.Label):
+    """
+    A tkinter package Label osztályából leszármazó osztály, mely megjeleníti a DeviceFrame-en a hozzá tartozó eszköz
+    élő képét
+    """
     def __init__(self, ip_addr, master=None):
+        """
+        Az osztály konstruktora
+        :param ip_addr: A megjelenítendő eszköz IP-címe
+        :param master: A szülő objektum, amelyikhez ez a Label tartozni fog
+        """
         super().__init__(master)
         self.master = master
         src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
@@ -24,10 +33,16 @@ class CaptureLabel(tk.Label):
             self.thread.start()
 
     def error(self):
+        """
+        Ez a metódus fut le, ha nem sikerül a timeout időn belül megnyitni az élőképet
+        """
         messagebox.showerror(title="Error", message="Invalid address!")
         self.master.destroy()
 
     def video_stream(self):
+        """
+        Az élőkép megjelenítését végző metódus
+        """
         _, frame = self.cam.read()
         cv2img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         image = Image.fromarray(cv2img)
@@ -37,11 +52,17 @@ class CaptureLabel(tk.Label):
         self.master.after(10, self.video_stream)
 
     def end_stream(self):
+        """
+        Az élőkép lekérésének befejezését megvalósító metódus
+        """
         self.cam.release()
         self.thread.join()
         self.destroy()
 
 
+#
+# A program belépési pontja
+#
 if __name__ == '__main__':
     root = tk.Tk()
     main_frame = tk.Frame(root, width=600, height=500)
