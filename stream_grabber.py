@@ -10,15 +10,15 @@ class CaptureLabel(tk.Label):
     def __init__(self, ip_addr, master=None):
         super().__init__(master)
         self.master = master
-        src = str('http://' + ip_addr + ':4665/stream')
+        src = str('http://' + ip_addr + ':8080/stream/video.mjpeg')
 
-        # self.timeout = self.after(3000, self.error)
+        self.timeout = self.after(3000, self.error)
         self.cam = cv2.VideoCapture(src)
-        # self.after_cancel(self.timeout)
+        self.after_cancel(self.timeout)
         self.thread = threading.Thread(target=self.video_stream())
 
         if self.cam.isOpened():
-            self.grid(row=0, column=0, rowspan=3, sticky='NWS')
+            self.grid(row=0, column=0, rowspan=3, sticky='NWES')
 
             self.thread.daemon = True
             self.thread.start()
