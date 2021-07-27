@@ -3,7 +3,8 @@ import requests
 
 class ApiObject:
     """
-    Az az osztály, mely lekérdezi a Raspberry Pi által futtatott REST API-tól a kiértékelés eredményeit
+    Az az osztály, mely lekérdezi a Raspberry Pi által futtatott REST API-tól a kiértékelés eredményeit, jelenleg
+    használaton kívül van
     """
     def __init__(self, ip_address):
         """

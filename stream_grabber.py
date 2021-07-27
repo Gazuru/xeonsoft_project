@@ -1,3 +1,6 @@
+import os
+import time
+
 import cv2
 import threading
 import tkinter as tk
@@ -11,6 +14,7 @@ class CaptureLabel(tk.Label):
     A tkinter package Label osztályából leszármazó osztály, mely megjeleníti a DeviceFrame-en a hozzá tartozó eszköz
     élő képét
     """
+
     def __init__(self, ip_addr, master=None):
         """
         Az osztály konstruktora
@@ -60,6 +64,45 @@ class CaptureLabel(tk.Label):
         self.destroy()
 
 
+class PictureCanvas(tk.Canvas):
+    """
+    Mindig a legújabb eredményként kapott képet megjelenítő osztály
+    """
+    def __init__(self, results, master=None):
+        """
+        Az osztály konstruktora
+        :param results: az eredmény, ami alapján megjelenítést végez
+        :param master: a canvas szülő objektuma
+        """
+        super().__init__(master, height=480, width=640, borderwidth=0)
+        self.master = master
+        self.results = results
+        self.grid(row=0, column=0, rowspan=3, sticky='NEWS')
+        self.thread = threading.Thread(target=self.refresh, daemon=True)
+        self.thread.start()
+
+    def refresh(self):
+        """
+        Metódus, mely másodpercenként újra és újra frissíti az eredményt
+        """
+        if os.path.isfile(str(self.results.img)):
+            img = Image.open(self.results.img)
+        else:
+            img = Image.open('error.png')
+        self.image = ImageTk.PhotoImage(img, Image.ANTIALIAS)
+        self.create_image(0, 0, image=self.image, anchor='nw')
+        if not "error" in img.filename:
+            self.create_text(100, 20, fill="green", font="Times 20 bold", text="Correct: {}".format(self.results.correct))
+            self.create_text(540, 20, fill="red", font="Times 20 bold", text="Faulty: {}".format(self.results.faulty))
+        self.after(1000, self.refresh)
+
+    def stop(self):
+        """
+        A külön szál leállítása
+        """
+        self.thread.join()
+
+
 #
 # A program belépési pontja
 #
@@ -69,9 +112,3 @@ if __name__ == '__main__':
     main_frame.grid(row=0, column=0, padx=10, pady=2, rowspan=3)
     CaptureLabel('192.168.1.67', main_frame)
     main_frame.mainloop()
-
-    """req = urllib.request.urlopen('http://192.168.1.67:4664')
-    arr = numpy.asarray(bytearray(req.read()), dtype=numpy.uint8)
-    img = cv2.imdecode(arr, -1)
-    cv2.imshow("ASD", img)
-"""

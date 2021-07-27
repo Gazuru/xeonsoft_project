@@ -9,8 +9,8 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox, filedialog
 
-import api_handler
 import file_transfer
+import mqtt_sub
 import stream_grabber
 
 
@@ -22,6 +22,9 @@ class Upload:
 
     @staticmethod
     def clear():
+        """
+        A fájlfeltöltési útvonalak kiürítésére szolgál.
+        """
         Upload.network_path = None
 
 
@@ -87,7 +90,6 @@ class Application(tk.Frame):
         menu = tk.Menu(self.master)
         self.master.config(menu=menu)
         fileMenu = tk.Menu(menu, tearoff=0)
-        # TODO menüelemek funkcióinak implementációja
         fileMenu.add_command(label="Save", command=self.save)
         fileMenu.add_command(label="Load", command=self.load)
         fileMenu.add_command(label="Clear", command=Application.clear)
@@ -112,10 +114,10 @@ class Application(tk.Frame):
     @staticmethod
     def end_current():
         """
-        Statikus metódus, az applikációban megjelenő élőkép befejezését oldja meg
+        Statikus metódus, az applikációban megjelenő kép betöltésének befejezését oldja meg
         """
         if Application.current_stream:
-            Application.current_stream.end_stream()
+            Application.current_stream.stop()
             Application.current_stream = None
 
     def tab_thread(self, event):
@@ -132,10 +134,12 @@ class Application(tk.Frame):
         Amikor a tab váltás történik, ezt hívja meg a 'tab_thread metódus
         :return: Amennyiben a főtabra vált a felhasználó, visszatér és nem történik semmi
         """
-        Upload.clear()
+        # TODO átnézni, hogy ez a kód hogyan működik élőkép nélkül, optimalizálni
+        # Upload.clear()
         current_id = self.notebook.index("current")
-        if Application.current_stream:
-            self.end_current()
+
+        # if Application.current_stream:
+        #   self.end_current()
 
         if current_id == 0:
             return
@@ -143,7 +147,7 @@ class Application(tk.Frame):
             tab = self.notebook.nametowidget(self.notebook.select())
 
             if tab:
-                Application.current_stream = stream_grabber.CaptureLabel(tab.device.ip_address, tab)
+                Application.current_stream = stream_grabber.PictureCanvas(tab.device.client.result, tab)
 
     @staticmethod
     def clear():
@@ -245,6 +249,7 @@ class Device:
         :param ip: Az eszköz IP-címe
         """
         self.ip_address = ip
+        self.client = mqtt_sub.Client(self.ip_address)
         print("Device created with IP " + str(self.ip_address))
 
 
@@ -262,7 +267,7 @@ class DeviceFrame(tk.Frame):
         super().__init__(master)
         self.master = master
         self.device = device
-        self.handler = api_handler.ApiObject(device)
+        # self.handler = api_handler.ApiObject(device)
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=0)
@@ -349,7 +354,7 @@ class DeviceFrame(tk.Frame):
 
 
 #
-# A fő ablak
+# A fő ablak alapja
 #
 root = tk.Tk(className="\XeonSoft_Project")
 
@@ -364,7 +369,8 @@ def on_load():
         return True
     else:
         reply = messagebox.askyesnocancel("Load new config",
-                                          "You have unsaved changes.\nDo you want to save before loading a new configuration?")
+                                          "You have unsaved changes.\n"
+                                          + "Do you want to save before loading a new configuration?")
         if reply:
             Application.save()
             return True
